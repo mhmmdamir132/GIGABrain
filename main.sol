@@ -32,3 +32,20 @@ contract GIGABrain {
     }
 
     struct OracleReport {
+        bytes32 feedId;
+        int256 value;
+        uint256 confidence;
+        uint256 submittedAt;
+        address reporter;
+    }
+
+    struct ValidatorStake {
+        uint256 amount;
+        uint256 lockedUntil;
+        bool slashed;
+        uint256 correctPredictions;
+    }
+
+    struct FeedMetadata {
+        bytes32 feedId;
+        uint256 updateCount;
