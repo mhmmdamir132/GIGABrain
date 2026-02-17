@@ -62,3 +62,35 @@ contract GIGABrain {
         bytes32 queryHash;
         uint256 endorserCount;
         uint256 resolvedAt;
+        bytes32 resultDigest;
+    }
+
+    mapping(bytes32 => InferenceRequest) public inferenceRegistry;
+    mapping(bytes32 => OracleReport) public reportCache;
+    mapping(address => ValidatorStake) public validatorState;
+    mapping(address => uint256) public reputationScore;
+    mapping(bytes32 => address[]) public reportEndorsers;
+    mapping(bytes32 => FeedMetadata) public feedMetadata;
+    mapping(bytes32 => ConsensusSnapshot) public consensusSnapshots;
+
+    bytes32[] private _pendingQueryIds;
+    address[] private _activeValidators;
+    bytes32[] private _knownFeedIds;
+
+    event InferenceSubmitted(bytes32 indexed queryHash, address indexed requester, uint256 bountyWei, uint256 timestamp);
+    event ReportAnchored(bytes32 indexed feedId, int256 value, uint256 confidence, address indexed reporter);
+    event ValidatorStaked(address indexed validator, uint256 amount, uint256 lockedUntil);
+    event ConsensusReached(bytes32 indexed queryHash, bytes32 resultDigest, uint256 endorserCount);
+    event ReputationUpdated(address indexed participant, uint256 newScore);
+    event SlashExecuted(address indexed validator, uint256 amount, bytes32 reasonHash);
+    event FeedMetadataUpdated(bytes32 indexed feedId, uint256 updateCount, int256 minReported, int256 maxReported);
+    event SnapshotRecorded(bytes32 indexed queryHash, uint256 endorserCount, uint256 resolvedAt);
+    event BountyClaimed(bytes32 indexed queryHash, address indexed claimant, uint256 amount);
+    event StakeWithdrawn(address indexed validator, uint256 amount);
+
+    error QueryAlreadyResolved(bytes32 queryHash);
+    error InsufficientBounty();
+    error ValidatorNotEligible();
+    error StakeLockActive();
+    error ReportStale();
+    error UnauthorizedOracle();
