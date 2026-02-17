@@ -350,3 +350,35 @@ contract GIGABrain {
         ConsensusSnapshot storage s = consensusSnapshots[queryHash];
         return (s.endorserCount, s.resolvedAt, s.resultDigest);
     }
+
+    function getFeedMetadata(bytes32 feedId) external view returns (uint256 updateCount, uint256 firstSeenAt, int256 minReported, int256 maxReported) {
+        FeedMetadata storage m = feedMetadata[feedId];
+        return (m.updateCount, m.firstSeenAt, m.minReported, m.maxReported);
+    }
+
+    function getKnownFeedCount() external view returns (uint256) {
+        return _knownFeedIds.length;
+    }
+
+    function getKnownFeedIdAt(uint256 index) external view returns (bytes32) {
+        require(index < _knownFeedIds.length, "index");
+        return _knownFeedIds[index];
+    }
+
+    function getValidatorAt(uint256 index) external view returns (address) {
+        require(index < _activeValidators.length, "index");
+        return _activeValidators[index];
+    }
+
+    function getEndorserCount(bytes32 queryHash) external view returns (uint256) {
+        return reportEndorsers[queryHash].length;
+    }
+
+    function getEndorserAt(bytes32 queryHash, uint256 index) external view returns (address) {
+        address[] storage endorsers = reportEndorsers[queryHash];
+        require(index < endorsers.length, "index");
+        return endorsers[index];
+    }
+
+    function computeConfidenceWeight(uint256 confidence) public pure returns (uint256) {
+        return (confidence * _WEIGHT_DENOMINATOR) / _WEIGHT_DENOMINATOR;
