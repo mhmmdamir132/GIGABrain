@@ -190,3 +190,35 @@ contract GIGABrain {
 
     function resolveInference(bytes32 queryHash, bytes32 resultDigest) external onlyHub nonReentrant {
         InferenceRequest storage req = inferenceRegistry[queryHash];
+        if (req.resolved) revert QueryAlreadyResolved(queryHash);
+        if (req.timestamp == 0) revert QueryAlreadyResolved(queryHash);
+
+        req.resolved = true;
+        req.resultDigest = resultDigest;
+
+        uint256 endorserCount = reportEndorsers[queryHash].length;
+        consensusSnapshots[queryHash] = ConsensusSnapshot({
+            queryHash: queryHash,
+            endorserCount: endorserCount,
+            resolvedAt: block.timestamp,
+            resultDigest: resultDigest
+        });
+        emit SnapshotRecorded(queryHash, endorserCount, block.timestamp);
+        emit ConsensusReached(queryHash, resultDigest, endorserCount);
+
+        uint256 bounty = req.bountyWei;
+        if (endorserCount == 0 && bounty > 0 && req.requester != address(0)) {
+            (bool ok,) = payable(req.requester).call{value: bounty}("");
+            if (!ok) revert TransferFailed();
+        } else {
+            _allocateBounty(queryHash, bounty, endorserCount);
+        }
+    }
+
+    function claimBounty(bytes32 queryHash) external nonReentrant {
+        uint256 amount = claimableBounty[queryHash][msg.sender];
+        if (amount == 0) return;
+        claimableBounty[queryHash][msg.sender] = 0;
+        (bool ok,) = payable(msg.sender).call{value: amount}("");
+        if (!ok) revert TransferFailed();
+        emit BountyClaimed(queryHash, msg.sender, amount);
