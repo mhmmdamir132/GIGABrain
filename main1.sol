@@ -222,3 +222,35 @@ contract GIGABrain {
         (bool ok,) = payable(msg.sender).call{value: amount}("");
         if (!ok) revert TransferFailed();
         emit BountyClaimed(queryHash, msg.sender, amount);
+    }
+
+    function endorseReport(bytes32 queryHash) external {
+        if (inferenceRegistry[queryHash].timestamp == 0) revert QueryAlreadyResolved(queryHash);
+        if (validatorState[msg.sender].amount < _AXON_THRESHOLD) revert ValidatorNotEligible();
+        if (validatorState[msg.sender].lockedUntil < block.timestamp) revert ValidatorNotEligible();
+        if (validatorState[msg.sender].slashed) revert ValidatorNotEligible();
+
+        address[] storage endorsers = reportEndorsers[queryHash];
+        for (uint256 i = 0; i < endorsers.length; i++) {
+            if (endorsers[i] == msg.sender) return;
+        }
+        endorsers.push(msg.sender);
+
+        validatorState[msg.sender].correctPredictions += 1;
+        reputationScore[msg.sender] = _computeReputation(msg.sender);
+        emit ReputationUpdated(msg.sender, reputationScore[msg.sender]);
+    }
+
+    function slashValidator(address validator, bytes32 reasonHash) external onlyAnchor nonReentrant {
+        ValidatorStake storage vs = validatorState[validator];
+        if (vs.amount == 0) return;
+        if (vs.slashed) return;
+
+        uint256 amount = vs.amount;
+        vs.slashed = true;
+        vs.amount = 0;
+        vs.lockedUntil = 0;
+
+        (bool ok,) = payable(TREASURY).call{value: amount}("");
+        if (!ok) revert TransferFailed();
+        emit SlashExecuted(validator, amount, reasonHash);
