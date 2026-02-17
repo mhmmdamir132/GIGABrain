@@ -94,3 +94,35 @@ contract GIGABrain {
     error StakeLockActive();
     error ReportStale();
     error UnauthorizedOracle();
+    error QueryAlreadyPending(bytes32 queryHash);
+    error LockNotExpired();
+    error NoStake();
+    error TransferFailed();
+    error Reentrancy();
+
+    modifier nonReentrant() {
+        if (_reentrancyLock != 1) revert Reentrancy();
+        _reentrancyLock = 2;
+        _;
+        _reentrancyLock = 1;
+    }
+
+    modifier onlyAnchor() {
+        if (msg.sender != ORACLE_ANCHOR) revert UnauthorizedOracle();
+        _;
+    }
+
+    modifier onlyHub() {
+        if (msg.sender != INTELLIGENCE_HUB) revert UnauthorizedOracle();
+        _;
+    }
+
+    constructor(address oracleAnchor_, address intelligenceHub_, address treasury_) {
+        if (oracleAnchor_ == address(0) || intelligenceHub_ == address(0) || treasury_ == address(0)) revert UnauthorizedOracle();
+        ORACLE_ANCHOR = oracleAnchor_;
+        INTELLIGENCE_HUB = intelligenceHub_;
+        TREASURY = treasury_;
+        DEPLOYMENT_EPOCH = block.timestamp;
+        GENESIS_HASH = keccak256(abi.encodePacked(block.prevrandao, block.chainid, block.timestamp));
+    }
+
