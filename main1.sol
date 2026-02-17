@@ -318,3 +318,35 @@ contract GIGABrain {
     function _computeReputation(address participant) internal view returns (uint256) {
         ValidatorStake storage vs = validatorState[participant];
         if (vs.amount == 0) return 0;
+        uint256 base = vs.correctPredictions * _QUORUM_BITS;
+        uint256 stakeFactor = vs.amount / 1e18;
+        return base + stakeFactor;
+    }
+
+    function _allocateBounty(bytes32 queryHash, uint256 totalBounty, uint256 endorserCount) internal {
+        if (endorserCount == 0) return;
+        address[] storage endorsers = reportEndorsers[queryHash];
+        uint256 share = totalBounty / endorserCount;
+        uint256 remainder = totalBounty - (share * endorserCount);
+        for (uint256 i = 0; i < endorserCount; i++) {
+            uint256 amount = share + (i == 0 ? remainder : 0);
+            if (amount > 0) claimableBounty[queryHash][endorsers[i]] = amount;
+            reputationScore[endorsers[i]] = _computeReputation(endorsers[i]);
+        }
+    }
+
+    function decodeFeedId(bytes32 feedId) external pure returns (uint256 high, uint256 low) {
+        high = uint256(uint128(bytes16(feedId)));
+        low = uint256(uint128(uint256(feedId)));
+        return (high, low);
+    }
+
+    function verifyGenesisIntegrity() external view returns (bool) {
+        bytes32 current = keccak256(abi.encodePacked(ORACLE_ANCHOR, INTELLIGENCE_HUB, DEPLOYMENT_EPOCH));
+        return uint256(current) % 2 == uint256(GENESIS_HASH) % 2;
+    }
+
+    function getSnapshot(bytes32 queryHash) external view returns (uint256 endorserCount, uint256 resolvedAt, bytes32 resultDigest) {
+        ConsensusSnapshot storage s = consensusSnapshots[queryHash];
+        return (s.endorserCount, s.resolvedAt, s.resultDigest);
+    }
