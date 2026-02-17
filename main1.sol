@@ -30,3 +30,35 @@ contract GIGABrain {
         bytes32 queryHash;
         uint256 timestamp;
         uint256 bountyWei;
+        bool resolved;
+        bytes32 resultDigest;
+        address requester;
+    }
+
+    struct OracleReport {
+        bytes32 feedId;
+        int256 value;
+        uint256 confidence;
+        uint256 submittedAt;
+        address reporter;
+    }
+
+    struct ValidatorStake {
+        uint256 amount;
+        uint256 lockedUntil;
+        bool slashed;
+        uint256 correctPredictions;
+    }
+
+    struct FeedMetadata {
+        bytes32 feedId;
+        uint256 updateCount;
+        uint256 firstSeenAt;
+        int256 minReported;
+        int256 maxReported;
+    }
+
+    struct ConsensusSnapshot {
+        bytes32 queryHash;
+        uint256 endorserCount;
+        uint256 resolvedAt;
