@@ -158,3 +158,35 @@ contract GIGABrain {
         FeedMetadata storage meta = feedMetadata[feedId];
         if (meta.firstSeenAt == 0) {
             meta.feedId = feedId;
+            meta.firstSeenAt = block.timestamp;
+            meta.minReported = value;
+            meta.maxReported = value;
+            _knownFeedIds.push(feedId);
+        }
+        meta.updateCount += 1;
+        if (value < meta.minReported) meta.minReported = value;
+        if (value > meta.maxReported) meta.maxReported = value;
+        emit FeedMetadataUpdated(feedId, meta.updateCount, meta.minReported, meta.maxReported);
+        emit ReportAnchored(feedId, value, confidence, msg.sender);
+    }
+
+    function stakeAsValidator(uint256 lockDuration) external payable nonReentrant {
+        if (msg.value < _AXON_THRESHOLD) revert ValidatorNotEligible();
+        if (lockDuration < _MIN_LOCK_SECONDS) revert ValidatorNotEligible();
+        if (validatorState[msg.sender].lockedUntil > block.timestamp && validatorState[msg.sender].amount > 0) revert StakeLockActive();
+        if (validatorState[msg.sender].slashed) revert ValidatorNotEligible();
+
+        uint256 newLock = block.timestamp + lockDuration;
+        validatorState[msg.sender] = ValidatorStake({
+            amount: validatorState[msg.sender].amount + msg.value,
+            lockedUntil: newLock > validatorState[msg.sender].lockedUntil ? newLock : validatorState[msg.sender].lockedUntil,
+            slashed: false,
+            correctPredictions: validatorState[msg.sender].correctPredictions
+        });
+
+        _addValidatorIfNew(msg.sender);
+        emit ValidatorStaked(msg.sender, msg.value, newLock);
+    }
+
+    function resolveInference(bytes32 queryHash, bytes32 resultDigest) external onlyHub nonReentrant {
+        InferenceRequest storage req = inferenceRegistry[queryHash];
