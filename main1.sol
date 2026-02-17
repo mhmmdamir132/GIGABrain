@@ -254,3 +254,35 @@ contract GIGABrain {
         (bool ok,) = payable(TREASURY).call{value: amount}("");
         if (!ok) revert TransferFailed();
         emit SlashExecuted(validator, amount, reasonHash);
+    }
+
+    function withdrawStake() external nonReentrant {
+        ValidatorStake storage vs = validatorState[msg.sender];
+        if (vs.lockedUntil >= block.timestamp) revert LockNotExpired();
+        if (vs.amount == 0) revert NoStake();
+        if (vs.slashed) revert ValidatorNotEligible();
+
+        uint256 amount = vs.amount;
+        vs.amount = 0;
+        vs.lockedUntil = 0;
+        (bool ok,) = payable(msg.sender).call{value: amount}("");
+        if (!ok) revert TransferFailed();
+        emit StakeWithdrawn(msg.sender, amount);
+    }
+
+    function getCachedReport(bytes32 feedId) external view returns (int256 value, uint256 confidence, uint256 submittedAt) {
+        OracleReport storage r = reportCache[feedId];
+        return (r.value, r.confidence, r.submittedAt);
+    }
+
+    function getInferenceStatus(bytes32 queryHash) external view returns (bool resolved, bytes32 resultDigest, address requester, uint256 bountyWei) {
+        InferenceRequest storage req = inferenceRegistry[queryHash];
+        return (req.resolved, req.resultDigest, req.requester, req.bountyWei);
+    }
+
+    function computeQueryHash(bytes calldata payload) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(_KERNEL_SEED, payload));
+    }
+
+    function getValidatorCount() external view returns (uint256) {
+        return _activeValidators.length;
