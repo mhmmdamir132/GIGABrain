@@ -286,3 +286,35 @@ contract GIGABrain {
 
     function getValidatorCount() external view returns (uint256) {
         return _activeValidators.length;
+    }
+
+    function getPendingQueryCount() external view returns (uint256) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < _pendingQueryIds.length; i++) {
+            if (!inferenceRegistry[_pendingQueryIds[i]].resolved) count++;
+        }
+        return count;
+    }
+
+    function getSystemEpoch() external view returns (uint256) {
+        return (block.timestamp - DEPLOYMENT_EPOCH) / (1 days);
+    }
+
+    function getNeuralWeight(bytes32 feedId) external view returns (uint256) {
+        OracleReport storage r = reportCache[feedId];
+        if (r.submittedAt == 0) return 0;
+        uint256 age = block.timestamp - r.submittedAt;
+        if (age > 365 days) return 0;
+        return (r.confidence * (_AXON_THRESHOLD - age)) / _AXON_THRESHOLD;
+    }
+
+    function _addValidatorIfNew(address validator) internal {
+        for (uint256 i = 0; i < _activeValidators.length; i++) {
+            if (_activeValidators[i] == validator) return;
+        }
+        _activeValidators.push(validator);
+    }
+
+    function _computeReputation(address participant) internal view returns (uint256) {
+        ValidatorStake storage vs = validatorState[participant];
+        if (vs.amount == 0) return 0;
