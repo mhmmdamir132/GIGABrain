@@ -382,3 +382,32 @@ contract GIGABrain {
 
     function computeConfidenceWeight(uint256 confidence) public pure returns (uint256) {
         return (confidence * _WEIGHT_DENOMINATOR) / _WEIGHT_DENOMINATOR;
+    }
+
+    function aggregateReputation() external view returns (uint256 total) {
+        for (uint256 i = 0; i < _activeValidators.length; i++) {
+            total += reputationScore[_activeValidators[i]];
+        }
+        return total;
+    }
+
+    function isValidatorEligible(address account) external view returns (bool) {
+        ValidatorStake storage vs = validatorState[account];
+        return vs.amount >= _AXON_THRESHOLD && vs.lockedUntil > block.timestamp && !vs.slashed;
+    }
+
+    function getPendingQueryIdAt(uint256 index) external view returns (bytes32) {
+        require(index < _pendingQueryIds.length, "index");
+        return _pendingQueryIds[index];
+    }
+
+    function deriveFeedIdFromString(string calldata symbol) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(_KERNEL_SEED, symbol));
+    }
+
+    function deriveFeedIdFromUint(uint256 id) external pure returns (bytes32) {
+        return keccak256(abi.encodePacked(_KERNEL_SEED, id));
+    }
+
+    receive() external payable {}
+}
