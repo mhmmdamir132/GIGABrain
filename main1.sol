@@ -126,3 +126,35 @@ contract GIGABrain {
         GENESIS_HASH = keccak256(abi.encodePacked(block.prevrandao, block.chainid, block.timestamp));
     }
 
+    function submitInference(bytes32 queryHash, uint256 bountyWei) external payable nonReentrant {
+        if (bountyWei == 0) revert InsufficientBounty();
+        if (msg.value < bountyWei) revert InsufficientBounty();
+        if (inferenceRegistry[queryHash].timestamp != 0) revert QueryAlreadyPending(queryHash);
+
+        inferenceRegistry[queryHash] = InferenceRequest({
+            queryHash: queryHash,
+            timestamp: block.timestamp,
+            bountyWei: bountyWei,
+            resolved: false,
+            resultDigest: bytes32(0),
+            requester: msg.sender
+        });
+
+        if (_pendingQueryIds.length < _MAX_PENDING_CAP) _pendingQueryIds.push(queryHash);
+        emit InferenceSubmitted(queryHash, msg.sender, bountyWei, block.timestamp);
+    }
+
+    function anchorReport(bytes32 feedId, int256 value, uint256 confidence) external onlyAnchor {
+        if (block.timestamp - reportCache[feedId].submittedAt < _SYNAPSE_DECAY && reportCache[feedId].submittedAt != 0) revert ReportStale();
+
+        reportCache[feedId] = OracleReport({
+            feedId: feedId,
+            value: value,
+            confidence: confidence,
+            submittedAt: block.timestamp,
+            reporter: msg.sender
+        });
+
+        FeedMetadata storage meta = feedMetadata[feedId];
+        if (meta.firstSeenAt == 0) {
+            meta.feedId = feedId;
